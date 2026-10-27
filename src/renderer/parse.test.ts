@@ -38,6 +38,12 @@ describe("parseRecord", () => {
     expect(record.level).toBe("WARN");
     expect(record.timeMs).toBe(Date.UTC(2026, 9, 26, 16, 39, 2, 124));
     expect(record.json?.error_type).toBe("ResourceNotFoundException");
+    expect(record.error).toBe("ResourceNotFoundException: The resource does not exist");
+  });
+
+  it("reads error only from Go slog lines", () => {
+    expect(parseRecord(1, "", '{"message":"x","error":"boom"}').error).toBeUndefined();
+    expect(parseRecord(1, "", '{"msg":"x","error":{"code":1}}').error).toBeUndefined();
   });
 
   it("reads stack_trace", () => {

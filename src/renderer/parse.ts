@@ -14,6 +14,7 @@ export interface LogRecord {
   message?: string;
   loggerName?: string;
   stackTrace?: string;
+  error?: string;
 }
 
 const rfc3339 = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/;
@@ -70,6 +71,7 @@ export function parseRecord(id: number, kubeletTime: string, raw: string): LogRe
   }
   if (typeof obj.logger_name === "string") record.loggerName = obj.logger_name;
   if (typeof obj.stack_trace === "string") record.stackTrace = obj.stack_trace;
+  if (message === obj.msg && typeof obj.error === "string") record.error = obj.error;
   return record;
 }
 
