@@ -13,7 +13,7 @@ export const LogRow = memo(({ record, expanded, onToggle }: LogRowProps) => {
     // Selecting text must not collapse or expand the row.
     if (record.json && !window.getSelection()?.toString()) onToggle(record.id);
   };
-  const timestamp = record.json?.["@timestamp"];
+  const timestamp = record.json?.["@timestamp"] ?? record.json?.time;
   const fullTime =
     record.timeMs === undefined
       ? undefined

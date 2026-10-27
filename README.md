@@ -8,6 +8,8 @@
 {"@timestamp":"2026-10-20T18:42:09.879Z","level":"INFO","logger_name":"com.example.app.AppKt","message":"Started","stack_trace":"..."}
 ```
 
+Go `log/slog` JSON с полями `time`, `level` и `msg` тоже поддерживается.
+
 Строки, которые не разбираются как JSON, тоже показываются, но как есть.
 
 ## Что понадобится

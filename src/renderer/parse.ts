@@ -57,11 +57,13 @@ export function parseRecord(id: number, kubeletTime: string, raw: string): LogRe
   }
   if (typeof json !== "object" || json === null || Array.isArray(json)) return record;
   const obj = json as Record<string, unknown>;
-  if (typeof obj.message !== "string") return record;
+  const message = obj.message ?? obj.msg;
+  if (typeof message !== "string") return record;
 
   record.json = obj;
-  record.message = obj.message;
-  if (typeof obj["@timestamp"] === "string") record.timeMs = parseTimestamp(obj["@timestamp"]) ?? record.timeMs;
+  record.message = message;
+  const timestamp = obj["@timestamp"] ?? obj.time;
+  if (typeof timestamp === "string") record.timeMs = parseTimestamp(timestamp) ?? record.timeMs;
   if (typeof obj.level === "string") {
     const level = obj.level.toUpperCase();
     if ((levels as readonly string[]).includes(level)) record.level = level as Level;
