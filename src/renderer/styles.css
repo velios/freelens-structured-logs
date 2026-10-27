@@ -189,6 +189,10 @@
   color: var(--textColorDimmed);
 }
 
+.sl-error {
+  color: var(--colorSoftError);
+}
+
 .sl-badge {
   margin-left: 1ch;
   padding: 0 4px;

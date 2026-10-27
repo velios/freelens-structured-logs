@@ -33,6 +33,7 @@ export const LogRow = memo(({ record, expanded, onToggle }: LogRowProps) => {
             </span>
             <span className="sl-message">
               {record.message}
+              {record.error ? <span className="sl-error">: {record.error}</span> : null}
               {record.stackTrace && !expanded ? <span className="sl-badge">stack_trace</span> : null}
             </span>
           </>
