@@ -1,0 +1,38 @@
+{
+  "name": "freelens-structured-logs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Freelens extension: pod logs in Logstash JSON format",
+  "renderer": "out/renderer/index.js",
+  "files": [
+    "out/**/*"
+  ],
+  "engines": {
+    "node": ">= 22.0.0",
+    "freelens": "^1.10.0"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest run",
+    "type:check": "tsc --noEmit -p tsconfig.json --composite false",
+    "prebuild": "pnpm type:check",
+    "build": "electron-vite build",
+    "prepack": "pnpm build"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@freelensapp/extensions": "1.10.3",
+    "@types/node": "~24.12.4",
+    "@types/react": "^17.0.93",
+    "@vitejs/plugin-react": "^6.0.3",
+    "electron-vite": "^5.0.0",
+    "mobx": "6.13.7",
+    "mobx-react": "7.6.0",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "typescript": "5.9.3",
+    "vite": "^8.1.2",
+    "vitest": "^4.1.9"
+  },
+  "packageManager": "pnpm@10.34.4+sha512.8768be55200ae3f2226b6527fcca2687e14bc4e5f12d7721a0f25da3df47915177058648db4177baf348120fa0ba2752d8d8d93f6beaf1fe64ae18da8de961af"
+}

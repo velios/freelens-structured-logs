@@ -1,0 +1,242 @@
+.sl-view {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  color: var(--textColorPrimary);
+  background: var(--mainBackground);
+}
+
+.sl-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--borderFaintColor);
+  background: var(--contentColor);
+}
+
+.sl-title {
+  font-weight: var(--font-weight-bold);
+  color: var(--textColorAccent);
+  margin-right: 8px;
+}
+
+.sl-input,
+.sl-button {
+  font: inherit;
+  font-size: var(--font-size-small);
+  color: var(--textColorPrimary);
+  background: var(--mainBackground);
+  border: 1px solid var(--borderColor);
+  border-radius: var(--border-radius);
+  padding: 3px 8px;
+}
+
+.sl-button {
+  cursor: pointer;
+}
+
+.sl-button:hover {
+  border-color: var(--textColorSecondary);
+}
+
+.sl-search {
+  width: 320px;
+  font-family: var(--font-monospace);
+}
+
+.sl-invalid {
+  border-color: var(--colorError);
+}
+
+.sl-chip {
+  opacity: 0.45;
+  font-family: var(--font-monospace);
+}
+
+.sl-chip[class*="sl-level-"]:not(.sl-on) {
+  text-decoration: line-through;
+}
+
+.sl-chip.sl-on {
+  opacity: 1;
+  border-color: currentColor;
+}
+
+.sl-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.sl-state,
+.sl-count {
+  margin-left: auto;
+  font-size: var(--font-size-small);
+  color: var(--textColorDimmed);
+}
+
+.sl-state-streaming {
+  color: var(--colorOk);
+}
+
+.sl-state-error,
+.sl-state-reconnecting {
+  color: var(--colorWarning);
+}
+
+.sl-banner {
+  padding: 4px 12px;
+  font-size: var(--font-size-small);
+  background: var(--layoutBackground);
+  color: var(--colorWarning);
+  border-bottom: 1px solid var(--borderFaintColor);
+}
+
+.sl-banner.sl-error {
+  color: var(--colorError);
+  white-space: pre-wrap;
+}
+
+.sl-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overflow-anchor: auto;
+  outline: none;
+  font-family: var(--font-monospace);
+  font-size: var(--font-size-small);
+  line-height: 1.45;
+  color: var(--logsForeground);
+  background: var(--logsBackground);
+}
+
+.sl-record {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 18px;
+  border-bottom: 1px solid var(--borderFaintColor);
+}
+
+.sl-row {
+  display: grid;
+  grid-template-columns: 12ch 5ch minmax(0, 22ch) minmax(0, 1fr);
+  column-gap: 1ch;
+  padding: 0 12px;
+}
+
+.sl-clickable > .sl-row {
+  cursor: pointer;
+}
+
+.sl-row:hover {
+  background: var(--logRowHoverBackground);
+}
+
+.sl-time {
+  color: var(--textColorDimmed);
+}
+
+.sl-level {
+  font-weight: var(--font-weight-bold);
+}
+
+.sl-logger {
+  color: var(--textColorDimmed);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sl-message,
+.sl-raw {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sl-raw {
+  grid-column: 2 / -1;
+}
+
+.sl-level-error .sl-level,
+.sl-chip.sl-level-error {
+  color: var(--colorError);
+}
+
+.sl-level-warn .sl-level,
+.sl-chip.sl-level-warn {
+  color: var(--colorWarning);
+}
+
+.sl-level-info .sl-level,
+.sl-chip.sl-level-info {
+  color: var(--colorInfo);
+}
+
+.sl-level-debug .sl-level,
+.sl-level-trace .sl-level,
+.sl-chip.sl-level-debug,
+.sl-chip.sl-level-trace {
+  color: var(--halfGray);
+}
+
+.sl-level-debug .sl-message,
+.sl-level-trace .sl-message {
+  color: var(--textColorDimmed);
+}
+
+.sl-badge {
+  margin-left: 1ch;
+  padding: 0 4px;
+  border: 1px solid var(--colorError);
+  border-radius: var(--border-radius);
+  color: var(--colorError);
+  font-size: 0.85em;
+}
+
+.sl-details {
+  position: relative;
+  margin: 2px 12px 6px calc(12px + 13ch);
+  padding: 6px 8px;
+  border-left: 2px solid var(--borderColor);
+  background: var(--contentColor);
+}
+
+.sl-copy {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+}
+
+.sl-json,
+.sl-stack {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sl-stack {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--borderColor);
+  color: var(--colorSoftError);
+}
+
+.sl-muted {
+  color: var(--textColorDimmed);
+}
+
+.sl-new {
+  position: absolute;
+  right: 24px;
+  bottom: 16px;
+  color: var(--textColorAccent);
+  background: var(--buttonPrimaryBackground);
+  border-color: var(--buttonPrimaryBackground);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
+}
