@@ -15,6 +15,9 @@ const logstashLine =
 const errorLine =
   '{"@timestamp":"2026-10-20T18:43:00.1Z","message":"boom","logger_name":"com.example.Foo","level":"ERROR","stack_trace":"java.lang.IllegalStateException: boom\\n\\tat com.example.Foo.run(Foo.kt:10)\\n\\tat java.base/java.lang.Thread.run(Thread.java:1583)"}';
 
+const slogLine =
+  '{"time":"2026-10-26T16:39:02.124974946Z","level":"WARN","msg":"Processed request POST / — 400","method":"POST","path":"/","status":400,"duration_ms":10.298,"client_ip":"10.121.76.0","target":"GetItem","request_id":"dynopg-0000000000000001","request_bytes":90,"error":"ResourceNotFoundException: The resource does not exist","error_type":"ResourceNotFoundException","error_message":"The resource does not exist"}';
+
 describe("parseRecord", () => {
   it("reads Logstash fields", () => {
     const record = parseRecord(1, "2026-10-20T18:42:09.880000000Z", logstashLine);
@@ -26,6 +29,15 @@ describe("parseRecord", () => {
     expect(record.loggerName).toBe("com.example.app.AppKt");
     expect(record.timeMs).toBe(Date.UTC(2026, 9, 20, 18, 42, 9, 879));
     expect(record.json?.thread_name).toBe("main");
+  });
+
+  it("reads Go slog fields", () => {
+    const record = parseRecord(1, "2026-10-26T16:39:02.125110078Z", slogLine);
+
+    expect(record.message).toBe("Processed request POST / — 400");
+    expect(record.level).toBe("WARN");
+    expect(record.timeMs).toBe(Date.UTC(2026, 9, 26, 16, 39, 2, 124));
+    expect(record.json?.error_type).toBe("ResourceNotFoundException");
   });
 
   it("reads stack_trace", () => {
