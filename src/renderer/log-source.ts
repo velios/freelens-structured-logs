@@ -79,6 +79,44 @@ export function openLogSource(target: LogSourceTarget, events: LogSourceEvents):
   return stop;
 }
 
+export interface LogGroupEvents {
+  onLines(pod: string, lines: SourceLine[]): void;
+  onState(pod: string, state: SourceState, message?: string): void;
+}
+
+export interface LogGroup {
+  setPods(pods: readonly string[]): void;
+  stop(): void;
+}
+
+export function openLogGroup(base: Omit<LogSourceTarget, "pod">, events: LogGroupEvents): LogGroup {
+  const sources = new Map<string, () => void>();
+  return {
+    setPods(pods) {
+      for (const [pod, stop] of sources) {
+        if (pods.includes(pod)) continue;
+        stop();
+        sources.delete(pod);
+      }
+      for (const pod of pods) {
+        if (sources.has(pod)) continue;
+        const stop = openLogSource(
+          { ...base, pod },
+          {
+            onLines: (lines) => events.onLines(pod, lines),
+            onState: (state, message) => events.onState(pod, state, message),
+          },
+        );
+        sources.set(pod, stop);
+      }
+    },
+    stop() {
+      for (const stop of sources.values()) stop();
+      sources.clear();
+    },
+  };
+}
+
 async function loadPrevious(target: LogSourceTarget, signal: AbortSignal, onLines: LogSourceEvents["onLines"]) {
   const res = await request(target, { previous: true, tailLines: MAX_RECORDS }, signal);
   const lines = (await res.text()).split("\n").filter(Boolean).map(splitKubeletLine);
