@@ -5,7 +5,6 @@ export interface FilterItem {
   key: string;
   on: boolean;
   label: ReactNode;
-  after?: ReactNode;
   actions?: ReactNode;
   title?: string;
   className?: string;
@@ -96,7 +95,6 @@ export const FilterMenu = (props: FilterMenuProps) => {
                   <input type="checkbox" checked={item.on} onChange={() => props.onToggle(item.key)} />
                   {item.label}
                 </label>
-                {item.after}
                 <span className="sl-grow" />
                 {item.actions}
                 <button type="button" className="sl-link" onClick={() => props.onOnly(item.key)}>

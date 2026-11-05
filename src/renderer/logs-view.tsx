@@ -387,21 +387,24 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
           <span className="sl-mono">{shortPod(name)}</span>
         </>
       ),
-      after: <CopyButton text={name} title="Скопировать имя пода" />,
-      actions:
-        !gone && info && info.restarts > 0 ? (
-          <button
-            type="button"
-            className="sl-link"
-            title={`Логи ${container} до последнего рестарта (${info.restarts})${exitText ? `: ${exitText}` : ""}`}
-            onClick={() => {
-              setPreviousPod(name);
-              setMenu(undefined);
-            }}
-          >
-            прошлый запуск
-          </button>
-        ) : undefined,
+      actions: (
+        <>
+          <CopyButton text={name} title="Скопировать имя пода" />
+          {!gone && info && info.restarts > 0 ? (
+            <button
+              type="button"
+              className="sl-link"
+              title={`Логи ${container} до последнего рестарта (${info.restarts})${exitText ? `: ${exitText}` : ""}`}
+              onClick={() => {
+                setPreviousPod(name);
+                setMenu(undefined);
+              }}
+            >
+              прошлый запуск
+            </button>
+          ) : null}
+        </>
+      ),
     };
   });
 
