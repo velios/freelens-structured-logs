@@ -1,7 +1,7 @@
 import { clipboard } from "electron";
-import { memo, useState } from "react";
+import { Fragment, memo, useState } from "react";
 import { formatTime, isMutedFrame, type LogRecord, shortLoggerName } from "./parse";
-import { hiddenMatches, markRanges, type SearchField } from "./search";
+import { hiddenMatches, MATCH_COLORS, markRanges, type SearchField } from "./search";
 
 interface LogRowProps {
   record: LogRecord;
@@ -29,6 +29,42 @@ const Marked = ({ text, patterns }: { text: string; patterns: readonly RegExp[] 
   }
   parts.push(text.slice(pos));
   return <>{parts}</>;
+};
+
+const JsonLeaf = ({ text, value, patterns }: { text: string; value: string; patterns: readonly RegExp[] }) => {
+  const whole = markRanges(text, patterns).length ? -1 : patterns.findIndex((pattern) => value.search(pattern) !== -1);
+  if (whole === -1) return <Marked text={text} patterns={patterns} />;
+  return <mark className={`sl-mark sl-mark-${whole % MATCH_COLORS}`}>{text}</mark>;
+};
+
+const JsonText = ({ value, patterns, indent = "" }: { value: unknown; patterns: readonly RegExp[]; indent?: string }) => {
+  if (value === null || typeof value !== "object") {
+    const text = JSON.stringify(value);
+    if (typeof value !== "string") return <JsonLeaf text={text} value={text} patterns={patterns} />;
+    return (
+      <>
+        "<JsonLeaf text={text.slice(1, -1)} value={value} patterns={patterns} />"
+      </>
+    );
+  }
+  const array = Array.isArray(value);
+  const entries = Object.entries(value);
+  const [open, close] = array ? ["[", "]"] : ["{", "}"];
+  if (!entries.length) return <>{open + close}</>;
+  const inner = `${indent}  `;
+  return (
+    <>
+      {open}
+      {entries.map(([key, child], i) => (
+        <Fragment key={key}>
+          {`\n${inner}${array ? "" : `${JSON.stringify(key)}: `}`}
+          <JsonText value={child} patterns={patterns} indent={inner} />
+          {i < entries.length - 1 ? "," : ""}
+        </Fragment>
+      ))}
+      {`\n${indent}${close}`}
+    </>
+  );
 };
 
 export const LogRow = memo(({ record, expanded, onToggle, podLabel, podColor, patterns, fields }: LogRowProps) => {
@@ -130,7 +166,7 @@ const RecordDetails = ({ record, json, showPod, patterns }: RecordDetailsProps) 
         </pre>
       ) : null}
       <pre className="sl-json">
-        <Marked text={JSON.stringify(rest, null, 2)} patterns={patterns} />
+        <JsonText value={rest} patterns={patterns} />
       </pre>
     </div>
   );

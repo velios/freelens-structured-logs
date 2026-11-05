@@ -30,6 +30,13 @@ describe("matchesQuery", () => {
     expect(matches(kafka, "trace_id")).toBe(false);
   });
 
+  it("searches null and empty values", () => {
+    const record = parseRecord(4, "", '{"message":"ok","mdc":{"reason":null},"empty":""}');
+    expect(matches(record, "null")).toBe(true);
+    expect(matches(record, "^$", true)).toBe(true);
+    expect(matches(kafka, "null")).toBe(false);
+  });
+
   it("searches the raw text of a line that is not JSON", () => {
     expect(matches(plain, "xmx512 java_tool")).toBe(true);
     expect(matches(plain, "Xms")).toBe(false);

@@ -90,10 +90,15 @@ function topRow(list: HTMLElement): Anchor | undefined {
   return found ? { id: Number((found as HTMLElement).dataset.id), offset: rowOffset(list, found), picked: false } : undefined;
 }
 
-function anchorBeforeFilterChange(list: HTMLElement, picked: Anchor | undefined, following: boolean): Anchor | undefined {
-  if (picked) {
-    const row = rowById(list, picked.id);
-    if (!row) return picked;
+function anchorBeforeFilterChange(
+  list: HTMLElement,
+  picked: Anchor | undefined,
+  inBuffer: (id: number) => boolean,
+  following: boolean,
+): Anchor | undefined {
+  const row = picked && rowById(list, picked.id);
+  if (picked && !row && inBuffer(picked.id)) return picked;
+  if (picked && row) {
     const offset = rowOffset(list, row);
     if (offset + row.getBoundingClientRect().height > 0 && offset < list.clientHeight) return { ...picked, offset };
   }
@@ -237,8 +242,9 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
   if (lastFilter.current !== isVisible) {
     lastFilter.current = isVisible;
     const list = listRef.current;
-    filterAnchor.current = list ? anchorBeforeFilterChange(list, pickedRow.current, stick.current) : undefined;
-    if (filterAnchor.current?.picked) pickedRow.current = filterAnchor.current;
+    const inBuffer = (id: number) => records.current.some((record) => record.id === id);
+    filterAnchor.current = list ? anchorBeforeFilterChange(list, pickedRow.current, inBuffer, stick.current) : undefined;
+    pickedRow.current = filterAnchor.current?.picked ? filterAnchor.current : undefined;
   }
 
   useEffect(() => {

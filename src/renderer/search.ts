@@ -35,8 +35,8 @@ export function buildQuery(input: string, regex: boolean): SearchQuery {
 }
 
 function flatten(value: unknown, path: string, add: (path: string, text: string) => void) {
-  if (value === null || value === undefined) return;
-  if (typeof value !== "object") {
+  if (value === undefined) return;
+  if (value === null || typeof value !== "object") {
     add(path, String(value));
     return;
   }
@@ -49,7 +49,7 @@ function flatten(value: unknown, path: string, add: (path: string, text: string)
 export function searchFields(record: LogRecord, podLabel?: string): SearchField[] {
   const fields: SearchField[] = [];
   const add = (name: string, text: string | undefined, visible: boolean) => {
-    if (text) fields.push({ name, text, visible });
+    if (text !== undefined) fields.push({ name, text, visible });
   };
   if (record.timeMs !== undefined) add("time", formatTime(record.timeMs), true);
   add("pod", podLabel, true);
