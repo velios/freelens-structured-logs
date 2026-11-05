@@ -462,3 +462,41 @@
   border-color: var(--buttonPrimaryBackground);
   box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
 }
+
+.sl-mark {
+  color: inherit;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--sl-mark-color) 35%, transparent);
+  box-shadow: inset 0 -1px 0 var(--sl-mark-color);
+}
+
+.sl-mark-0 {
+  --sl-mark-color: var(--colorInfo, #2d71a4);
+}
+
+.sl-mark-1 {
+  --sl-mark-color: var(--magenta, #c93dce);
+}
+
+.sl-mark-2 {
+  --sl-mark-color: var(--colorOk, #4caf50);
+}
+
+.sl-mark-3 {
+  --sl-mark-color: var(--golden, #ffc63d);
+}
+
+.sl-badge.sl-found {
+  color: var(--textColorAccent);
+  border-color: var(--textColorAccent);
+}
+
+.sl-flash {
+  animation: sl-flash 1.6s ease-out;
+}
+
+@keyframes sl-flash {
+  from {
+    background: color-mix(in srgb, var(--textColorAccent) 30%, transparent);
+  }
+}

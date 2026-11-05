@@ -20,6 +20,7 @@ import {
   resolveTarget,
 } from "./pods";
 import { isSelected, type Selection, selectAll, selectionLabel, selectOnly, setNames, toggleName } from "./selection";
+import { buildQuery, matchesQuery, type SearchField, searchFields } from "./search";
 import styles from "./styles.css?inline";
 
 export interface LogsViewProps {
@@ -45,22 +46,6 @@ const levelOf = (record: LogRecord): LevelFilter => record.level ?? "OTHER";
 
 type Menu = "pods" | "loggers";
 
-type Matcher = { test: (raw: string) => boolean; error?: string };
-
-function buildMatcher(search: string, regex: boolean): Matcher {
-  if (!search) return { test: () => true };
-  if (regex) {
-    try {
-      const re = new RegExp(search, "i");
-      return { test: (raw) => re.test(raw) };
-    } catch (error) {
-      return { test: () => true, error: (error as Error).message };
-    }
-  }
-  const needle = search.toLowerCase();
-  return { test: (raw) => raw.toLowerCase().includes(needle) };
-}
-
 function containerOptions(pods: readonly PodInfo[]): ContainerOption[] {
   const options: ContainerOption[] = [];
   for (const init of [true, false]) {
@@ -76,6 +61,56 @@ function containerOptions(pods: readonly PodInfo[]): ContainerOption[] {
 const loggerPackage = (name: string) => name.slice(0, Math.max(0, name.lastIndexOf(".")));
 
 const distanceToBottom = (el: HTMLElement) => el.scrollHeight - el.scrollTop - el.clientHeight;
+
+interface Anchor {
+  id: number;
+  offset: number;
+  picked: boolean;
+}
+
+const rowOffset = (list: HTMLElement, row: Element) => row.getBoundingClientRect().top - list.getBoundingClientRect().top;
+
+const rowById = (list: HTMLElement, id: number) => list.querySelector(`[data-id="${id}"]`);
+
+function topRow(list: HTMLElement): Anchor | undefined {
+  const rows = list.children;
+  const top = list.getBoundingClientRect().top;
+  let found: Element | undefined;
+  let lo = 0;
+  let hi = rows.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (rows[mid].getBoundingClientRect().bottom > top) {
+      found = rows[mid];
+      hi = mid - 1;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return found ? { id: Number((found as HTMLElement).dataset.id), offset: rowOffset(list, found), picked: false } : undefined;
+}
+
+function anchorBeforeFilterChange(
+  list: HTMLElement,
+  picked: Anchor | undefined,
+  inBuffer: (id: number) => boolean,
+  following: boolean,
+): Anchor | undefined {
+  const row = picked && rowById(list, picked.id);
+  if (picked && !row && inBuffer(picked.id)) return picked;
+  if (picked && row) {
+    const offset = rowOffset(list, row);
+    if (offset + row.getBoundingClientRect().height > 0 && offset < list.clientHeight) return { ...picked, offset };
+  }
+  return following ? undefined : topRow(list);
+}
+
+function flash(row: Element) {
+  row.classList.remove("sl-flash");
+  void (row as HTMLElement).offsetWidth;
+  row.classList.add("sl-flash");
+  row.addEventListener("animationend", () => row.classList.remove("sl-flash"), { once: true });
+}
 
 export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
   const { namespace, podName } = target;
@@ -178,17 +213,39 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
   streamTargetsRef.current = streamTargets;
   const streamKey = streamTargets.join("\n");
 
-  const matcher = useMemo(() => buildMatcher(search, regex), [search, regex]);
+  const query = useMemo(() => buildQuery(search, regex), [search, regex]);
+  const fieldsOf = useMemo(() => {
+    const cache = new WeakMap<LogRecord, SearchField[]>();
+    return (record: LogRecord) => {
+      let fields = cache.get(record);
+      if (!fields) {
+        fields = searchFields(record, group && record.pod ? podLabel(record.pod, group.name) : undefined);
+        cache.set(record, fields);
+      }
+      return fields;
+    };
+  }, [group?.name]);
   const isVisible = useCallback(
     (record: LogRecord) =>
       enabledLevels.has(levelOf(record)) &&
       (previousOn || !record.pod || isSelected(podSelection, record.pod)) &&
       (!record.loggerName || isSelected(loggerSelection, record.loggerName)) &&
-      matcher.test(record.raw),
-    [matcher, enabledLevels, podSelection, loggerSelection, previousOn],
+      (query.patterns.length === 0 || matchesQuery(fieldsOf(record), query.patterns)),
+    [query, fieldsOf, enabledLevels, podSelection, loggerSelection, previousOn],
   );
   const isVisibleRef = useRef(isVisible);
   isVisibleRef.current = isVisible;
+
+  const pickedRow = useRef<Anchor>();
+  const filterAnchor = useRef<Anchor>();
+  const lastFilter = useRef(isVisible);
+  if (lastFilter.current !== isVisible) {
+    lastFilter.current = isVisible;
+    const list = listRef.current;
+    const inBuffer = (id: number) => records.current.some((record) => record.id === id);
+    filterAnchor.current = list ? anchorBeforeFilterChange(list, pickedRow.current, inBuffer, stick.current) : undefined;
+    pickedRow.current = filterAnchor.current?.picked ? filterAnchor.current : undefined;
+  }
 
   useEffect(() => {
     if (!container) return;
@@ -257,8 +314,44 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
 
   useLayoutEffect(() => {
     const el = listRef.current;
+    const anchor = filterAnchor.current;
+    filterAnchor.current = undefined;
+    if (el && anchor && keepAnchor(el, anchor)) return;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
   }, [visible]);
+
+  const keepAnchor = (list: HTMLElement, anchor: Anchor) => {
+    const position = new Map(records.current.map((record, i) => [record.id, i]));
+    const at = position.get(anchor.id);
+    if (at === undefined || visible.length === 0) return false;
+    const target = visible.find((record) => (position.get(record.id) ?? -1) >= at) ?? visible[visible.length - 1];
+    const row = rowById(list, target.id);
+    if (!row) return false;
+    const align = (frames: number) => {
+      const current = rowById(list, target.id);
+      if (!current) return;
+      const shift = rowOffset(list, current) - anchor.offset;
+      if (Math.abs(shift) >= 1) list.scrollTop += shift;
+      if (frames > 0) requestAnimationFrame(() => align(frames - 1));
+    };
+    align(3);
+    if (!previousOn && distanceToBottom(list) >= 2) {
+      stick.current = false;
+      setPaused(true);
+    }
+    if (anchor.picked && target.id === anchor.id) flash(row);
+    return true;
+  };
+
+  const pickRow = (e: React.MouseEvent) => {
+    const list = listRef.current;
+    const row = (e.target as Element).closest("[data-id]");
+    if (list && row) pickedRow.current = { id: Number((row as HTMLElement).dataset.id), offset: rowOffset(list, row), picked: true };
+  };
+
+  const forgetPickedRow = () => {
+    pickedRow.current = undefined;
+  };
 
   const pause = () => {
     const el = listRef.current;
@@ -290,6 +383,7 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
 
   // A drag of the scrollbar is the only scroll input without a wheel or key event.
   const startDrag = () => {
+    forgetPickedRow();
     dragging.current = true;
     window.addEventListener("pointerup", () => (dragging.current = false), { once: true });
   };
@@ -515,11 +609,11 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
       ) : null}
       <div className="sl-toolbar">
         <input
-          className={`sl-input sl-search${matcher.error ? " sl-invalid" : ""}`}
-          placeholder="Search"
+          className={`sl-input sl-search${query.error ? " sl-invalid" : ""}`}
+          placeholder={regex ? "Regex" : "Поиск: слова в любом порядке"}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          title={matcher.error}
+          title={query.error ?? (regex ? undefined : "Строка видна, если в ней есть все слова, в любом порядке и регистре")}
         />
         <button
           type="button"
@@ -557,9 +651,16 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
         className="sl-list"
         ref={listRef}
         onScroll={onScroll}
-        onWheel={(e) => e.deltaY < 0 && pause()}
-        onKeyDown={(e) => ["ArrowUp", "PageUp", "Home"].includes(e.key) && pause()}
+        onWheel={(e) => {
+          forgetPickedRow();
+          if (e.deltaY < 0) pause();
+        }}
+        onKeyDown={(e) => {
+          if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) forgetPickedRow();
+          if (["ArrowUp", "PageUp", "Home"].includes(e.key)) pause();
+        }}
         onPointerDown={startDrag}
+        onClick={pickRow}
         tabIndex={0}
         style={group ? ({ "--sl-pod-width": `${labelWidth}ch` } as React.CSSProperties) : undefined}
       >
@@ -571,6 +672,8 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
             onToggle={toggleExpanded}
             podLabel={group && record.pod ? labels.get(record.pod) : undefined}
             podColor={group && record.pod ? podColor(knownPods.indexOf(record.pod)) : undefined}
+            patterns={query.patterns}
+            fields={query.patterns.length ? fieldsOf(record) : undefined}
           />
         ))}
       </div>
