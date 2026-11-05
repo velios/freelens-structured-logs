@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mergeByTime, pickPods, podLabel } from "./pods";
+import { groupTitle, initialPods, mergeByTime, pickPods, podLabel } from "./pods";
+import { selectAll, selectOnly } from "./selection";
 
 const line = (pod: string, kubeletTime: string) => ({ pod, kubeletTime });
 
@@ -55,5 +56,28 @@ describe("mergeByTime", () => {
     );
 
     expect(merged.map((l) => l.pod)).toEqual(["d", "a", "c", "b"]);
+  });
+});
+
+describe("groupTitle", () => {
+  it("drops the pod template hash", () => {
+    expect(groupTitle({ name: "email-provider-5fc7c66cd6", selector: "", hash: "5fc7c66cd6" })).toBe("email-provider-*");
+  });
+
+  it("keeps a name without the hash", () => {
+    expect(groupTitle({ name: "email-provider-5fc7c66cd6", selector: "" })).toBe("email-provider-5fc7c66cd6-*");
+    expect(groupTitle({ name: "custom-rs", selector: "", hash: "5fc7c66cd6" })).toBe("custom-rs-*");
+  });
+});
+
+describe("initialPods", () => {
+  it("opens a new tab on its pod and an old ReplicaSet tab on all pods", () => {
+    expect(initialPods({ namespace: "ns", podName: "a-1", scope: "pod" })).toEqual(selectOnly(["a-1"]));
+    expect(initialPods({ namespace: "ns", podName: "a-1", scope: "replicaset" })).toEqual(selectAll());
+  });
+
+  it("restores a saved choice", () => {
+    const pods = { mode: "except" as const, names: ["a-2"] };
+    expect(initialPods({ namespace: "ns", podName: "a-1", scope: "pod", pods })).toEqual(pods);
   });
 });

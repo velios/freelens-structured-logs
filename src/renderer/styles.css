@@ -22,6 +22,7 @@
   font-weight: var(--font-weight-bold);
   color: var(--textColorAccent);
   margin-right: 8px;
+  white-space: nowrap;
 }
 
 .sl-input,
@@ -66,62 +67,205 @@
   border-color: currentColor;
 }
 
-.sl-segmented {
+.sl-levels {
   display: inline-flex;
 }
 
-.sl-segmented .sl-button {
+.sl-levels .sl-button {
+  min-width: 56px;
   border-radius: 0;
-  color: var(--textColorSecondary);
+  text-align: center;
 }
 
-.sl-segmented .sl-button + .sl-button {
+.sl-levels .sl-button + .sl-button {
   margin-left: -1px;
 }
 
-.sl-segmented .sl-button:first-child {
+.sl-levels .sl-button:first-child {
   border-radius: var(--border-radius) 0 0 var(--border-radius);
 }
 
-.sl-segmented .sl-button:last-child {
+.sl-levels .sl-button:last-child {
   border-radius: 0 var(--border-radius) var(--border-radius) 0;
 }
 
-.sl-segmented .sl-button.sl-on {
+.sl-levels .sl-on {
   position: relative;
-  color: var(--textColorAccent);
-  background: var(--buttonPrimaryBackground);
-  border-color: var(--buttonPrimaryBackground);
 }
 
-.sl-pods {
-  gap: 4px;
-}
-
-.sl-chip.sl-pod:not(.sl-on) {
-  text-decoration: line-through;
-}
-
-.sl-chip.sl-gone {
+.sl-chip.sl-part {
   border-style: dashed;
-  filter: grayscale(1);
 }
 
-.sl-chip.sl-pod-error {
-  border-color: var(--colorError);
+.sl-menu {
+  position: relative;
 }
 
-.sl-disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.sl-check {
+.sl-menu-button {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sl-menu-button.sl-open {
+  border-color: var(--textColorAccent);
+}
+
+.sl-menu-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sl-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  width: 400px;
+  padding: 6px 0;
   font-size: var(--font-size-small);
+  background: var(--contentColor);
+  border: 1px solid var(--borderColor);
+  border-radius: var(--border-radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+.sl-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+}
+
+.sl-panel-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   cursor: pointer;
+}
+
+.sl-panel-search {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-monospace);
+}
+
+.sl-panel-all {
+  width: 104px;
+  text-align: right;
+}
+
+.sl-panel-list {
+  max-height: 240px;
+  overflow: auto;
+  border-top: 1px solid var(--borderFaintColor);
+}
+
+.sl-panel-item:hover {
+  background: var(--logRowHoverBackground);
+}
+
+.sl-panel-note {
+  padding: 4px 10px;
+  color: var(--textColorDimmed);
+}
+
+.sl-panel-footer {
+  border-top: 1px solid var(--borderFaintColor);
+}
+
+.sl-panel-item.sl-gone label,
+.sl-panel-item.sl-no-container label {
+  opacity: 0.55;
+}
+
+.sl-panel-item.sl-pod-error .sl-mono {
+  color: var(--colorError);
+}
+
+.sl-link {
+  font: inherit;
+  color: var(--textColorSecondary);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius);
+  padding: 1px 6px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sl-link:hover:not(:disabled) {
+  color: var(--textColorPrimary);
+  border-color: var(--borderColor);
+}
+
+.sl-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--textColorDimmed);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+
+.sl-icon:hover {
+  color: var(--textColorPrimary);
+  border-color: var(--borderColor);
+}
+
+.sl-icon.sl-done {
+  color: var(--colorOk);
+}
+
+.sl-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.sl-mono {
+  font-family: var(--font-monospace);
+}
+
+.sl-strong {
+  color: var(--textColorAccent);
+}
+
+.sl-pkg,
+.sl-dimmed {
+  color: var(--textColorDimmed);
+}
+
+.sl-pkg {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sl-num {
+  min-width: 4ch;
+  text-align: right;
+  color: var(--textColorDimmed);
+}
+
+.sl-grow {
+  flex: 1;
+}
+
+.sl-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .sl-state,
@@ -242,6 +386,14 @@
 .sl-level-info .sl-level,
 .sl-chip.sl-level-info {
   color: var(--colorInfo);
+}
+
+.sl-chip.sl-level-all {
+  color: var(--textColorPrimary);
+}
+
+.sl-chip.sl-level-other {
+  color: var(--textColorSecondary);
 }
 
 .sl-level-debug .sl-level,

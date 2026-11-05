@@ -1,29 +1,38 @@
 import { Renderer } from "@freelensapp/extensions";
+import { type Selection, selectAll, selectOnly } from "./selection";
 
 export const MAX_PODS = 20;
 export const POD_POLL_MS = 5000;
 
-export const scopes = ["pod", "replicaset"] as const;
-
-export type Scope = (typeof scopes)[number];
-
-export const scopeTitles: Record<Scope, string> = { pod: "Pod", replicaset: "ReplicaSet" };
-
 export interface LogsTarget {
   namespace: string;
   podName: string;
-  scope?: Scope;
+  scope?: "pod" | "replicaset";
   replicaSet?: string;
+  pods?: Selection;
+}
+
+export interface LastExit {
+  reason?: string;
+  finishedAt?: string;
+}
+
+export interface ContainerInfo {
+  name: string;
+  init: boolean;
+  restarts: number;
+  lastExit?: LastExit;
 }
 
 export interface PodInfo {
   name: string;
-  containers: { name: string; init: boolean }[];
+  containers: ContainerInfo[];
 }
 
 export interface Group {
   name: string;
   selector: string;
+  hash?: string;
 }
 
 export interface ResolvedTarget {
@@ -32,20 +41,34 @@ export interface ResolvedTarget {
   replicaSet?: Group;
 }
 
-const toPodInfo = (pod: Renderer.K8sApi.Pod): PodInfo => ({
-  name: pod.getName(),
-  containers: [
-    ...pod.getInitContainers().map((c) => ({ name: c.name, init: true })),
-    ...pod.getContainers().map((c) => ({ name: c.name, init: false })),
-  ],
-});
+const toPodInfo = (pod: Renderer.K8sApi.Pod): PodInfo => {
+  const statuses = pod.getContainerStatuses(true);
+  const info = (name: string, init: boolean): ContainerInfo => {
+    const status = statuses.find((s) => s.name === name);
+    const terminated = status?.lastState?.terminated;
+    return {
+      name,
+      init,
+      restarts: status?.restartCount ?? 0,
+      lastExit: terminated ? { reason: terminated.reason, finishedAt: terminated.finishedAt } : undefined,
+    };
+  };
+  return {
+    name: pod.getName(),
+    containers: [
+      ...pod.getInitContainers().map((c) => info(c.name, true)),
+      ...pod.getContainers().map((c) => info(c.name, false)),
+    ],
+  };
+};
 
 const controllerName = (object: Renderer.K8sApi.KubeObject | undefined, kind: string) =>
   object?.getOwnerRefs().find((ref) => ref.kind === kind && ref.controller)?.name;
 
-const toGroup = (object: { getName(): string; getSelectors(): string[] }): Group => ({
+const toGroup = (object: Renderer.K8sApi.ReplicaSet): Group => ({
   name: object.getName(),
   selector: object.getSelectors().join(","),
+  hash: object.metadata.labels?.["pod-template-hash"],
 });
 
 const getOrUndefined = <T>(promise: Promise<T | null>) => promise.then((v) => v ?? undefined).catch(() => undefined);
@@ -74,6 +97,17 @@ export async function resolveTarget(target: LogsTarget): Promise<ResolvedTarget>
 export async function listPods(namespace: string, selector: string): Promise<PodInfo[]> {
   const pods = await Renderer.K8sApi.podsApi.list({ namespace }, { labelSelector: selector });
   return (pods ?? []).map(toPodInfo).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function groupTitle(group: Group): string {
+  const suffix = group.hash ? `-${group.hash}` : "";
+  const base = suffix && group.name.endsWith(suffix) ? group.name.slice(0, -suffix.length) : group.name;
+  return `${base}-*`;
+}
+
+export function initialPods(target: LogsTarget): Selection {
+  if (target.pods) return target.pods;
+  return target.scope === "replicaset" ? selectAll() : selectOnly([target.podName]);
 }
 
 export function podLabel(podName: string, groupName: string): string {

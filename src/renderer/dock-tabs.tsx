@@ -3,7 +3,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { render, unmountComponentAtNode } from "react-dom";
 import { LogsView } from "./logs-view";
-import type { LogsTarget } from "./pods";
+import { initialPods, type LogsTarget } from "./pods";
+import { selectOnly } from "./selection";
 
 // Extensions cannot add dock tab kinds (freelensapp/freelens#731), so a structured log tab is a
 // native pod logs tab whose content element gets our view on top of the hidden native one.
@@ -44,7 +45,7 @@ export function openLogsTab(pod: Renderer.K8sApi.Pod) {
   const container = pod.getContainers()[0] ?? pod.getInitContainers()[0];
   if (!container) return;
   const id = Renderer.Component.logTabStore.createPodTab({ selectedPod: pod, selectedContainer: container });
-  targets[id] = { namespace: pod.getNs(), podName: pod.getName(), scope: "pod" };
+  targets[id] = { namespace: pod.getNs(), podName: pod.getName(), pods: selectOnly([pod.getName()]) };
   saveTargets();
   sync();
 }
@@ -57,7 +58,11 @@ function updateTarget(id: string, target: LogsTarget) {
 }
 
 function tabTitle(target: LogsTarget) {
-  return target.scope === "replicaset" && target.replicaSet ? `{ } ${target.replicaSet}-*` : undefined;
+  const pods = initialPods(target);
+  if (pods.mode === "only" && pods.names.length === 1) {
+    return pods.names[0] === target.podName ? undefined : `{ } ${pods.names[0]}`;
+  }
+  return target.replicaSet ? `{ } ${target.replicaSet}-*` : undefined;
 }
 
 function titleCss(id: string, target: LogsTarget) {
