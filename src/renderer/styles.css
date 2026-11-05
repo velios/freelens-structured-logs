@@ -66,6 +66,56 @@
   border-color: currentColor;
 }
 
+.sl-segmented {
+  display: inline-flex;
+}
+
+.sl-segmented .sl-button {
+  border-radius: 0;
+  color: var(--textColorSecondary);
+}
+
+.sl-segmented .sl-button + .sl-button {
+  margin-left: -1px;
+}
+
+.sl-segmented .sl-button:first-child {
+  border-radius: var(--border-radius) 0 0 var(--border-radius);
+}
+
+.sl-segmented .sl-button:last-child {
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+
+.sl-segmented .sl-button.sl-on {
+  position: relative;
+  color: var(--textColorAccent);
+  background: var(--buttonPrimaryBackground);
+  border-color: var(--buttonPrimaryBackground);
+}
+
+.sl-pods {
+  gap: 4px;
+}
+
+.sl-chip.sl-pod:not(.sl-on) {
+  text-decoration: line-through;
+}
+
+.sl-chip.sl-gone {
+  border-style: dashed;
+  filter: grayscale(1);
+}
+
+.sl-chip.sl-pod-error {
+  border-color: var(--colorError);
+}
+
+.sl-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .sl-check {
   display: flex;
   align-items: center;
@@ -160,6 +210,23 @@
 
 .sl-raw {
   grid-column: 2 / -1;
+}
+
+.sl-row.sl-with-pod {
+  grid-template-columns: 12ch var(--sl-pod-width) 5ch minmax(0, 22ch) minmax(0, 1fr);
+}
+
+.sl-with-pod .sl-raw {
+  grid-column: 3 / -1;
+}
+
+.sl-pod-tag {
+  white-space: nowrap;
+}
+
+.sl-pod-name {
+  margin-bottom: 6px;
+  color: var(--textColorDimmed);
 }
 
 .sl-level-error .sl-level,

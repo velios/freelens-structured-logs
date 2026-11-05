@@ -6,9 +6,11 @@ interface LogRowProps {
   record: LogRecord;
   expanded: boolean;
   onToggle: (id: number) => void;
+  podLabel?: string;
+  podColor?: string;
 }
 
-export const LogRow = memo(({ record, expanded, onToggle }: LogRowProps) => {
+export const LogRow = memo(({ record, expanded, onToggle, podLabel, podColor }: LogRowProps) => {
   const toggle = () => {
     // Selecting text must not collapse or expand the row.
     if (record.json && !window.getSelection()?.toString()) onToggle(record.id);
@@ -21,10 +23,18 @@ export const LogRow = memo(({ record, expanded, onToggle }: LogRowProps) => {
 
   return (
     <div className={`sl-record${record.json ? " sl-clickable" : ""}`}>
-      <div className={`sl-row sl-level-${record.level?.toLowerCase() ?? "none"}`} onClick={toggle}>
+      <div
+        className={`sl-row sl-level-${record.level?.toLowerCase() ?? "none"}${podLabel ? " sl-with-pod" : ""}`}
+        onClick={toggle}
+      >
         <span className="sl-time" title={fullTime}>
           {record.timeMs === undefined ? "" : formatTime(record.timeMs)}
         </span>
+        {podLabel && record.pod ? (
+          <span className="sl-pod-tag" style={{ color: podColor }} title={record.pod}>
+            {podLabel}
+          </span>
+        ) : null}
         {record.json ? (
           <>
             <span className="sl-level">{record.level ?? ""}</span>
@@ -41,12 +51,12 @@ export const LogRow = memo(({ record, expanded, onToggle }: LogRowProps) => {
           <span className="sl-raw">{record.raw}</span>
         )}
       </div>
-      {expanded && record.json ? <RecordDetails record={record} json={record.json} /> : null}
+      {expanded && record.json ? <RecordDetails record={record} json={record.json} showPod={!!podLabel} /> : null}
     </div>
   );
 });
 
-const RecordDetails = ({ record, json }: { record: LogRecord; json: Record<string, unknown> }) => {
+const RecordDetails = ({ record, json, showPod }: { record: LogRecord; json: Record<string, unknown>; showPod: boolean }) => {
   const [copied, setCopied] = useState(false);
   const formatted = JSON.stringify(json, null, 2);
   const { stack_trace: _shownSeparately, ...rest } = json;
@@ -61,6 +71,7 @@ const RecordDetails = ({ record, json }: { record: LogRecord; json: Record<strin
       <button type="button" className="sl-button sl-copy" onClick={copy}>
         {copied ? "Copied" : "Copy"}
       </button>
+      {showPod && record.pod ? <div className="sl-pod-name">pod: {record.pod}</div> : null}
       {record.stackTrace ? (
         <pre className="sl-stack">
           {record.stackTrace.split("\n").map((line, i) => (

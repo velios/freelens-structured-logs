@@ -3,14 +3,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { render, unmountComponentAtNode } from "react-dom";
 import { LogsView } from "./logs-view";
+import type { LogsTarget } from "./pods";
 
 // Extensions cannot add dock tab kinds (freelensapp/freelens#731), so a structured log tab is a
 // native pod logs tab whose content element gets our view on top of the hidden native one.
-
-interface TabTarget {
-  namespace: string;
-  podName: string;
-}
 
 const contentIdPrefix = "dock-tab-content-for-";
 
@@ -28,7 +24,7 @@ let observer: MutationObserver | undefined;
 let frame = 0;
 // localStorage does not survive a restart: the frame origin contains a random port.
 let storePath = "";
-let targets: Record<string, TabTarget> = {};
+let targets: Record<string, LogsTarget> = {};
 
 function saveTargets() {
   try {
@@ -48,9 +44,29 @@ export function openLogsTab(pod: Renderer.K8sApi.Pod) {
   const container = pod.getContainers()[0] ?? pod.getInitContainers()[0];
   if (!container) return;
   const id = Renderer.Component.logTabStore.createPodTab({ selectedPod: pod, selectedContainer: container });
-  targets[id] = { namespace: pod.getNs(), podName: pod.getName() };
+  targets[id] = { namespace: pod.getNs(), podName: pod.getName(), scope: "pod" };
   saveTargets();
   sync();
+}
+
+function updateTarget(id: string, target: LogsTarget) {
+  if (!targets[id] || JSON.stringify(targets[id]) === JSON.stringify(target)) return;
+  targets[id] = target;
+  saveTargets();
+  sync();
+}
+
+function tabTitle(target: LogsTarget) {
+  return target.scope === "replicaset" && target.replicaSet ? `{ } ${target.replicaSet}-*` : undefined;
+}
+
+function titleCss(id: string, target: LogsTarget) {
+  const title = tabTitle(target);
+  const selector = `#tab-${id} [class*="title"]`;
+  if (!title) return `${selector}::before { content: "{ } "; }`;
+  const tab = document.getElementById(`tab-${id}`);
+  const fontSize = tab ? getComputedStyle(tab).fontSize : "inherit";
+  return `${selector} { font-size: 0; } ${selector}::before { content: ${JSON.stringify(title)}; font-size: ${fontSize}; }`;
 }
 
 /** Mounts views for live structured tabs, moves the view into the selected tab, drops closed tabs. */
@@ -75,7 +91,7 @@ function sync() {
     } else if (open && !hosts.has(id)) {
       const host = document.createElement("div");
       host.className = "sl-host";
-      render(<LogsView namespace={target.namespace} podName={target.podName} />, host);
+      render(<LogsView target={target} onTargetChange={(next) => updateTarget(id, next)} />, host);
       hosts.set(id, host);
     }
   }
@@ -94,7 +110,7 @@ function sync() {
 
   const markerText = [
     hostedCss,
-    ...[...hosts.keys()].map((id) => `#tab-${id} [class*="title"]::before { content: "{ } "; }`),
+    ...[...hosts.keys()].map((id) => titleCss(id, targets[id])),
   ].join("\n");
   if (marker.textContent !== markerText) marker.textContent = markerText;
 }
