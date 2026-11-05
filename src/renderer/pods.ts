@@ -65,9 +65,24 @@ const toPodInfo = (pod: Renderer.K8sApi.Pod): PodInfo => {
 const controllerName = (object: Renderer.K8sApi.KubeObject | undefined, kind: string) =>
   object?.getOwnerRefs().find((ref) => ref.kind === kind && ref.controller)?.name;
 
+interface LabelSelector {
+  matchLabels?: Partial<Record<string, string>>;
+  matchExpressions?: { key: string; operator: string; values?: string[] }[];
+}
+
+export function labelSelector(selector: LabelSelector | undefined): string {
+  const labels = Object.entries(selector?.matchLabels ?? {}).map(([key, value]) => `${key}=${value}`);
+  const expressions = (selector?.matchExpressions ?? []).map(({ key, operator, values = [] }) => {
+    if (operator === "Exists") return key;
+    if (operator === "DoesNotExist") return `!${key}`;
+    return `${key} ${operator === "NotIn" ? "notin" : "in"} (${values.join(",")})`;
+  });
+  return [...labels, ...expressions].join(",");
+}
+
 const toGroup = (object: Renderer.K8sApi.ReplicaSet): Group => ({
   name: object.getName(),
-  selector: object.getSelectors().join(","),
+  selector: labelSelector(object.spec.selector),
   hash: object.metadata.labels?.["pod-template-hash"],
 });
 
@@ -94,7 +109,13 @@ export async function resolveTarget(target: LogsTarget): Promise<ResolvedTarget>
   return result;
 }
 
+export async function getPods(namespace: string, name: string): Promise<PodInfo[]> {
+  const pod = await Renderer.K8sApi.podsApi.get({ name, namespace });
+  return pod ? [toPodInfo(pod)] : [];
+}
+
 export async function listPods(namespace: string, selector: string): Promise<PodInfo[]> {
+  if (!selector) return [];
   const pods = await Renderer.K8sApi.podsApi.list({ namespace }, { labelSelector: selector });
   return (pods ?? []).map(toPodInfo).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -126,9 +147,7 @@ export function pickPods(streamed: readonly string[], available: readonly string
 
 export function mergeByTime<T extends { kubeletTime: string }>(sorted: T[], added: T[]): T[] {
   const key = (item: T) => item.kubeletTime || "￿";
-  const batch = added.map((item, index) => ({ item, index }));
-  batch.sort((a, b) => (key(a.item) < key(b.item) ? -1 : key(a.item) > key(b.item) ? 1 : a.index - b.index));
-  const next = batch.map(({ item }) => item);
+  const next = [...added].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
   if (next.length === 0) return sorted;
   if (sorted.length === 0 || key(next[0]) >= key(sorted[sorted.length - 1])) return sorted.concat(next);
 

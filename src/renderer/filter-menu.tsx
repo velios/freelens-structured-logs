@@ -3,7 +3,6 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 export interface FilterItem {
   key: string;
-  search: string;
   on: boolean;
   label: ReactNode;
   after?: ReactNode;
@@ -14,7 +13,6 @@ export interface FilterItem {
 
 interface FilterMenuProps {
   label: string;
-  title?: string;
   width: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -28,7 +26,7 @@ interface FilterMenuProps {
 }
 
 export const FilterMenu = (props: FilterMenuProps) => {
-  const { label, title, width, open, onOpenChange, placeholder, items, empty, footer } = props;
+  const { label, width, open, onOpenChange, placeholder, items, empty, footer } = props;
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
@@ -42,7 +40,7 @@ export const FilterMenu = (props: FilterMenuProps) => {
   }, [open, onOpenChange]);
 
   const needle = query.trim().toLowerCase();
-  const shown = needle ? items.filter((item) => item.search.toLowerCase().includes(needle)) : items;
+  const shown = needle ? items.filter((item) => item.key.toLowerCase().includes(needle)) : items;
   const allOn = shown.length > 0 && shown.every((item) => item.on);
 
   return (
@@ -59,7 +57,7 @@ export const FilterMenu = (props: FilterMenuProps) => {
         style={{ width }}
         aria-haspopup="true"
         aria-expanded={open}
-        title={title ?? label}
+        title={label}
         onClick={() => onOpenChange(!open)}
       >
         <span className="sl-menu-label">{label}</span>

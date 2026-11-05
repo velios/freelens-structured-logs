@@ -7,6 +7,7 @@ import {
   groupTitle,
   initialPods,
   type LogsTarget,
+  getPods,
   listPods,
   MAX_PODS,
   mergeByTime,
@@ -79,7 +80,7 @@ const distanceToBottom = (el: HTMLElement) => el.scrollHeight - el.scrollTop - e
 export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
   const { namespace, podName } = target;
   const [resolved, setResolved] = useState<ResolvedTarget>();
-  const [groupPods, setGroupPods] = useState<PodInfo[]>();
+  const [livePods, setLivePods] = useState<PodInfo[]>();
   const [listError, setListError] = useState<string>();
   const [seenPods, setSeenPods] = useState<string[]>([]);
   const [podSelection, setPodSelection] = useState<Selection>(() => initialPods(target));
@@ -127,23 +128,23 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
   }, [resolved, podSelection]);
 
   useEffect(() => {
-    setGroupPods(undefined);
+    setLivePods(undefined);
     setListError(undefined);
     setSeenPods([]);
-    if (!group) return;
+    if (!resolved) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       try {
-        const pods = await listPods(namespace, group.selector);
+        const pods = group ? await listPods(namespace, group.selector) : await getPods(namespace, podName);
         if (cancelled) return;
         const names = pods.map((p) => p.name);
-        setGroupPods(pods);
+        setLivePods(pods);
         setListError(undefined);
         setSeenPods((prev) => [...prev, ...names.filter((n) => !prev.includes(n))]);
       } catch (error) {
-        if (!cancelled) setListError(`Pods of ${group.name}: ${String(error)}`);
+        if (!cancelled) setListError(`Pods of ${group?.name ?? podName}: ${String(error)}`);
       }
       if (!cancelled) timer = setTimeout(poll, POD_POLL_MS);
     };
@@ -152,15 +153,15 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [namespace, podName, group?.name, group?.selector]);
+  }, [namespace, podName, resolved !== undefined, group?.name, group?.selector]);
 
-  const pods = group ? groupPods : resolved?.pod ? [resolved.pod] : undefined;
-  const knownPods = group ? seenPods : resolved?.pod ? [resolved.pod.name] : [];
+  const pods = livePods;
+  const knownPods = seenPods;
   const containersKey = JSON.stringify(pods ? containerOptions(pods) : null);
   const containers = useMemo<ContainerOption[] | undefined>(() => JSON.parse(containersKey) ?? undefined, [containersKey]);
 
   useEffect(() => {
-    if (!containers || containers.some((c) => c.name === container)) return;
+    if (!containers?.length || containers.some((c) => c.name === container)) return;
     setContainer(containers.find((c) => !c.init)?.name ?? containers[0]?.name ?? "");
   }, [containers]);
 
@@ -375,7 +376,6 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
       .join(", ");
     return {
       key: name,
-      search: name,
       on: isSelected(podSelection, name),
       title: note ? `${name}: ${note}` : name,
       className: [gone ? "sl-gone" : "", !gone && !info ? "sl-no-container" : "", state?.state === "error" ? "sl-pod-error" : ""]
@@ -407,7 +407,6 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
 
   const loggerItems: FilterItem[] = loggerNames.map((name) => ({
     key: name,
-    search: name,
     on: isSelected(loggerSelection, name),
     title: name,
     label: (

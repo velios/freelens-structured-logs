@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupTitle, initialPods, mergeByTime, pickPods, podLabel } from "./pods";
+import { groupTitle, initialPods, labelSelector, mergeByTime, pickPods, podLabel } from "./pods";
 import { selectAll, selectOnly } from "./selection";
 
 const line = (pod: string, kubeletTime: string) => ({ pod, kubeletTime });
@@ -79,5 +79,25 @@ describe("initialPods", () => {
   it("restores a saved choice", () => {
     const pods = { mode: "except" as const, names: ["a-2"] };
     expect(initialPods({ namespace: "ns", podName: "a-1", scope: "pod", pods })).toEqual(pods);
+  });
+});
+
+describe("labelSelector", () => {
+  it("keeps match expressions next to match labels", () => {
+    expect(
+      labelSelector({
+        matchLabels: { app: "email-provider", "pod-template-hash": "5fc7c66cd6" },
+        matchExpressions: [
+          { key: "tier", operator: "In", values: ["api", "worker"] },
+          { key: "canary", operator: "NotIn", values: ["true"] },
+          { key: "team", operator: "Exists" },
+          { key: "legacy", operator: "DoesNotExist" },
+        ],
+      }),
+    ).toBe("app=email-provider,pod-template-hash=5fc7c66cd6,tier in (api,worker),canary notin (true),team,!legacy");
+  });
+
+  it("builds a selector from expressions only", () => {
+    expect(labelSelector({ matchExpressions: [{ key: "app", operator: "In", values: ["a"] }] })).toBe("app in (a)");
   });
 });
