@@ -1,5 +1,6 @@
 import { clipboard } from "electron";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export interface FilterItem {
   key: string;
@@ -27,16 +28,30 @@ interface FilterMenuProps {
 export const FilterMenu = (props: FilterMenuProps) => {
   const { label, width, open, onOpenChange, placeholder, items, empty, footer } = props;
   const [query, setQuery] = useState("");
+  const [anchor, setAnchor] = useState<{ left: number; bottom: number }>();
   const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) onOpenChange(false);
+      const target = event.target as Node;
+      if (!ref.current?.contains(target) && !panelRef.current?.contains(target)) onOpenChange(false);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open, onOpenChange]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const rect = ref.current?.getBoundingClientRect();
+      if (rect) setAnchor({ left: rect.left, bottom: window.innerHeight - rect.top + 4 });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open]);
 
   const needle = query.trim().toLowerCase();
   const shown = needle ? items.filter((item) => item.key.toLowerCase().includes(needle)) : items;
@@ -62,51 +77,54 @@ export const FilterMenu = (props: FilterMenuProps) => {
         <span className="sl-menu-label">{label}</span>
         <span className="sl-dimmed">▾</span>
       </button>
-      {open ? (
-        <div className="sl-panel" role="dialog" aria-label={label}>
-          <div className="sl-panel-row">
-            <input
-              className="sl-input sl-panel-search"
-              placeholder={placeholder}
-              aria-label={placeholder}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              autoFocus
-            />
-            <button
-              type="button"
-              className="sl-link sl-panel-all"
-              disabled={shown.length === 0}
-              onClick={() =>
-                props.onSetMany(
-                  shown.map((item) => item.key),
-                  !allOn,
-                  !needle,
-                )
-              }
-            >
-              {allOn ? "выключить все" : "включить все"}
-            </button>
-          </div>
-          <div className="sl-panel-list">
-            {shown.map((item) => (
-              <div key={item.key} className={`sl-panel-row sl-panel-item${item.className ? ` ${item.className}` : ""}`}>
-                <label title={item.title}>
-                  <input type="checkbox" checked={item.on} onChange={() => props.onToggle(item.key)} />
-                  {item.label}
-                </label>
-                <span className="sl-grow" />
-                {item.actions}
-                <button type="button" className="sl-link" onClick={() => props.onOnly(item.key)}>
-                  только
+      {open && anchor
+        ? createPortal(
+            <div className="sl-panel" ref={panelRef} style={anchor} role="dialog" aria-label={label}>
+              <div className="sl-panel-row">
+                <input
+                  className="sl-input sl-panel-search"
+                  placeholder={placeholder}
+                  aria-label={placeholder}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="sl-link sl-panel-all"
+                  disabled={shown.length === 0}
+                  onClick={() =>
+                    props.onSetMany(
+                      shown.map((item) => item.key),
+                      !allOn,
+                      !needle,
+                    )
+                  }
+                >
+                  {allOn ? "выключить все" : "включить все"}
                 </button>
               </div>
-            ))}
-            {shown.length === 0 ? <div className="sl-panel-note">{empty}</div> : null}
-          </div>
-          {footer ? <div className="sl-panel-note sl-panel-footer">{footer}</div> : null}
-        </div>
-      ) : null}
+              <div className="sl-panel-list">
+                {shown.map((item) => (
+                  <div key={item.key} className={`sl-panel-row sl-panel-item${item.className ? ` ${item.className}` : ""}`}>
+                    <label title={item.title}>
+                      <input type="checkbox" checked={item.on} onChange={() => props.onToggle(item.key)} />
+                      {item.label}
+                    </label>
+                    <span className="sl-grow" />
+                    {item.actions}
+                    <button type="button" className="sl-link" onClick={() => props.onOnly(item.key)}>
+                      только
+                    </button>
+                  </div>
+                ))}
+                {shown.length === 0 ? <div className="sl-panel-note">{empty}</div> : null}
+              </div>
+              {footer ? <div className="sl-panel-note sl-panel-footer">{footer}</div> : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 };
