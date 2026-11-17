@@ -1,4 +1,3 @@
-import { clipboard } from "electron";
 import { Fragment, memo, useState } from "react";
 import { formatTime, isMutedFrame, type LogRecord, shortLoggerName } from "./parse";
 import { hiddenMatches, MATCH_COLORS, markRanges, type SearchField } from "./search";
@@ -141,7 +140,7 @@ const RecordDetails = ({ record, json, showPod, patterns }: RecordDetailsProps) 
   const formatted = JSON.stringify(json, null, 2);
   const { stack_trace: _shownSeparately, ...rest } = json;
   const copy = () => {
-    clipboard.writeText(formatted);
+    navigator.clipboard.writeText(formatted);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

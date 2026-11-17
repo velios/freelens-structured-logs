@@ -1,7 +1,6 @@
 import { Renderer } from "@freelensapp/extensions";
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { render, unmountComponentAtNode } from "react-dom";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { LogsView } from "./logs-view";
 import { initialPods, type LogsTarget } from "./pods";
 import { selectOnly } from "./selection";
@@ -17,20 +16,20 @@ const hostedCss = `
 .sl-host { position: absolute; inset: 0; }
 `;
 
-const hosts = new Map<string, HTMLDivElement>();
+const hosts = new Map<string, { element: HTMLDivElement; target: LogsTarget }>();
 // A new tab is rendered after createPodTab returns, so only tabs that were shown can be closed.
 const shown = new Set<string>();
 const marker = document.createElement("style");
 let observer: MutationObserver | undefined;
 let frame = 0;
 // localStorage does not survive a restart: the frame origin contains a random port.
-let storePath = "";
+let clusterId = "";
+let ipc: Renderer.Ipc;
+let updateViews = () => {};
 let targets: Record<string, LogsTarget> = {};
 
 function saveTargets() {
-  try {
-    writeFileSync(storePath, JSON.stringify(targets));
-  } catch {}
+  void ipc.invoke("save-tabs", clusterId, targets).catch(console.error);
 }
 
 // The hidden native viewer appends a poll every 10 s without a limit. In previous mode it loads
@@ -81,30 +80,32 @@ function sync() {
   if (!dock) return;
 
   let changed = false;
-  for (const [id, target] of Object.entries(targets)) {
+  for (const id of Object.keys(targets)) {
     quietNativeViewer(id);
     const open = document.getElementById(`tab-${id}`) !== null;
     if (open) shown.add(id);
     if (!open && shown.has(id)) {
       shown.delete(id);
       const host = hosts.get(id);
-      if (host) unmountComponentAtNode(host);
-      host?.remove();
+      host?.element.remove();
       hosts.delete(id);
       delete targets[id];
       changed = true;
     } else if (open && !hosts.has(id)) {
       const host = document.createElement("div");
       host.className = "sl-host";
-      render(<LogsView target={target} onTargetChange={(next) => updateTarget(id, next)} />, host);
-      hosts.set(id, host);
+      hosts.set(id, { element: host, target: targets[id] });
+      updateViews();
     }
   }
-  if (changed) saveTargets();
+  if (changed) {
+    saveTargets();
+    updateViews();
+  }
 
   const content = dock.querySelector<HTMLElement>(".tab-content");
   const selectedId = content?.dataset.testid?.slice(contentIdPrefix.length);
-  for (const [id, host] of hosts) {
+  for (const [id, { element: host }] of hosts) {
     if (content && id === selectedId) {
       if (host.parentElement !== content) content.appendChild(host);
     } else if (host.isConnected) {
@@ -120,14 +121,12 @@ function sync() {
   if (marker.textContent !== markerText) marker.textContent = markerText;
 }
 
-/** Starts in a cluster frame only; `folder` is the extension's own file folder. */
-export function startDockTabs(folder: string) {
-  const clusterId = /^([0-9a-f]{32})\./.exec(location.hostname)?.[1];
+/** Starts in a cluster frame only; persistence is handled by the main process. */
+export async function startDockTabs(tabsIpc: Renderer.Ipc) {
+  clusterId = /^([0-9a-f]{32})\./.exec(location.hostname)?.[1] ?? "";
   if (!clusterId) return;
-  storePath = join(folder, `tabs-${clusterId}.json`);
-  try {
-    targets = JSON.parse(readFileSync(storePath, "utf8"));
-  } catch {}
+  ipc = tabsIpc;
+  targets = await ipc.invoke("load-tabs", clusterId);
   document.head.appendChild(marker);
   observer = new MutationObserver(() => {
     if (!frame) frame = requestAnimationFrame(sync);
@@ -139,11 +138,26 @@ export function startDockTabs(folder: string) {
 export function stopDockTabs() {
   observer?.disconnect();
   cancelAnimationFrame(frame);
-  for (const host of hosts.values()) {
-    unmountComponentAtNode(host);
+  for (const { element: host } of hosts.values()) {
     host.remove();
   }
   hosts.clear();
+  shown.clear();
+  updateViews();
   marker.remove();
   document.querySelector(".sl-hosted")?.classList.remove("sl-hosted");
+}
+
+export function DockTabs() {
+  const [, setVersion] = useState(0);
+  useEffect(() => {
+    updateViews = () => setVersion((value) => value + 1);
+    updateViews();
+    return () => { updateViews = () => {}; };
+  }, []);
+  return <>{[...hosts].map(([id, { element: host, target }]) => createPortal(
+    <LogsView target={target} onTargetChange={(next) => updateTarget(id, next)} />,
+    host,
+    id,
+  ))}</>;
 }
