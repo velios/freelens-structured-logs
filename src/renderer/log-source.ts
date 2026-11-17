@@ -1,5 +1,3 @@
-import { Renderer } from "@freelensapp/extensions";
-import { setTimeout as sleep } from "node:timers/promises";
 import { splitKubeletLine } from "./parse";
 
 export const INITIAL_TAIL_LINES = 1000;
@@ -25,19 +23,13 @@ export interface LogSourceEvents {
   onState(state: SourceState, message?: string): void;
 }
 
-const createApi = () =>
-  new Renderer.K8sApi.KubeJsonApi(
-    { serverAddress: `https://127.0.0.1:${location.port}`, apiBase: "/api-kube" },
-    { headers: { Host: location.host } },
-  );
-
 async function request(target: LogSourceTarget, query: Record<string, string | number | boolean>, signal: AbortSignal) {
   const url = `/api/v1/namespaces/${encodeURIComponent(target.namespace)}/pods/${encodeURIComponent(target.pod)}/log`;
-  const res = await createApi().getResponse(
-    url,
-    { query: { container: target.container, timestamps: true, ...query } },
-    { signal },
-  );
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries({ container: target.container, timestamps: true, ...query })) {
+    params.set(key, String(value));
+  }
+  const res = await fetch(`/api-kube${url}?${params}`, { signal });
   if (!res.ok) {
     const text = await res.text();
     let message = text || `HTTP ${res.status}`;
@@ -171,14 +163,22 @@ async function follow(
       lastError = undefined;
       const decoder = new TextDecoder();
       let rest = "";
-      for await (const chunk of res.body as AsyncIterable<Uint8Array>) {
-        const parts = (rest + decoder.decode(chunk, { stream: true })).split("\n");
-        rest = parts.pop() ?? "";
-        const lines = parts.filter(Boolean).map(splitKubeletLine).filter(isNew);
-        if (lines.length > 0 && !signal.aborted) {
-          received = true;
-          onLines(lines);
+      if (!res.body) throw new Error("Log response has no body");
+      const reader = res.body.getReader();
+      try {
+        while (!signal.aborted) {
+          const { done, value: chunk } = await reader.read();
+          if (done) break;
+          const parts = (rest + decoder.decode(chunk, { stream: true })).split("\n");
+          rest = parts.pop() ?? "";
+          const lines = parts.filter(Boolean).map(splitKubeletLine).filter(isNew);
+          if (lines.length > 0 && !signal.aborted) {
+            received = true;
+            onLines(lines);
+          }
         }
+      } finally {
+        reader.releaseLock();
       }
       // A cut-off last line stays unseen and is fetched again after reconnect.
       report("reconnecting");
@@ -189,8 +189,17 @@ async function follow(
     }
     const healthy = received || (!lastError && Date.now() - startedAt > 10_000);
     retryDelay = healthy ? 1000 : Math.min(retryDelay * 2, MAX_RETRY_DELAY_MS);
-    // Rejects with AbortError on abort; the loop condition then ends the stream.
-    await sleep(retryDelay, undefined, { signal }).catch(() => {});
+    // Abort ends the delay immediately; the loop condition then ends the stream.
+    await new Promise<void>((resolve) => {
+      if (signal.aborted) return resolve();
+      const finish = () => {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, retryDelay);
+      signal.addEventListener("abort", finish, { once: true });
+    });
   }
 }
 

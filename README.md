@@ -14,7 +14,7 @@ Go `log/slog` JSON с полями `time`, `level` и `msg` тоже подде�
 
 ## Что понадобится
 
-- Freelens 1.10.x. Freelens 2.x и Lens не поддерживаются.
+- Freelens 2.x. Для Freelens 1.10.x остаётся старый релиз 0.2.0; Lens не поддерживается.
 - Доступ к Kubernetes-кластеру через kubeconfig (тот же, что для `kubectl`).
 
 ## 1. Установить Freelens
@@ -27,7 +27,7 @@ brew install --cask freelens
 
 Windows и Linux: скачать установщик со [страницы релизов Freelens](https://github.com/freelensapp/freelens/releases) или с [freelens.app](https://freelens.app/).
 
-Если Freelens уже стоит, проверьте версию в меню **Freelens → About Freelens**: нужна 1.10.x.
+Если Freelens уже стоит, проверьте версию в меню **Freelens → About Freelens**: нужна 2.x.
 
 ## 2. Подключить кластер
 
@@ -41,7 +41,7 @@ Freelens сам находит кластеры из kubeconfig-файлов в 
 2. Вставьте в поле **Name or file path or URL** адрес пакета:
 
    ```
-   https://github.com/velios/freelens-structured-logs/releases/download/v0.2.0/freelens-structured-logs-0.2.0.tgz
+   https://github.com/velios/freelens-structured-logs/releases/download/v0.3.0/freelens-structured-logs-0.3.0.tgz
    ```
 
 3. Нажмите **Install**.
@@ -100,17 +100,7 @@ pnpm build
 pnpm test
 ```
 
-Чтобы Freelens подхватил локальную сборку, при **запущенном** Freelens создайте ссылку на папку репозитория:
-
-```bash
-ln -s "$PWD" ~/.freelens/extensions/freelens-structured-logs
-```
-
-Hot-reload нет: после каждой пересборки перезапускайте Freelens. На macOS:
-
-```bash
-osascript -e 'quit app "Freelens"' && sleep 3 && open -a Freelens
-```
+Для локальной разработки откройте **Extensions**, укажите абсолютный путь к папке репозитория и нажмите **Install**. Freelens загрузит расширение на месте; после `pnpm build` оно перезагрузится автоматически.
 
 Пакет для релиза собирает `pnpm pack --pack-destination dist`, сборка запускается перед упаковкой сама. Устройство и принятые решения описаны в [SPEC.md](SPEC.md).
 

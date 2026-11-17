@@ -15,8 +15,8 @@ export default defineConfig({
     passWithNoTests: true,
     alias: {
       // `@freelensapp/extensions`, mobx, react, etc. are provided by the
-      // Freelens host as globals at runtime and are not bundled. The real
-      // extensions package cannot be imported in tests (it requires Electron),
+      // Freelens host at runtime. The real extensions package reads globals
+      // that do not exist in unit tests,
       // so swap it for a small stub - see `test/freelens-extensions.ts`.
       "@freelensapp/extensions": fileURLToPath(new URL("./test/freelens-extensions.ts", import.meta.url)),
     },

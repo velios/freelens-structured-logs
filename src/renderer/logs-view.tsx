@@ -140,7 +140,7 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
   const listRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const dragging = useRef(false);
-  const logGroup = useRef<LogGroup>();
+  const logGroup = useRef<LogGroup | undefined>(undefined);
   const streamedRef = useRef<string[]>([]);
   const lastTargets = useRef<string[]>([]);
 
@@ -236,8 +236,8 @@ export const LogsView = ({ target, onTargetChange }: LogsViewProps) => {
   const isVisibleRef = useRef(isVisible);
   isVisibleRef.current = isVisible;
 
-  const pickedRow = useRef<Anchor>();
-  const filterAnchor = useRef<Anchor>();
+  const pickedRow = useRef<Anchor | undefined>(undefined);
+  const filterAnchor = useRef<Anchor | undefined>(undefined);
   const lastFilter = useRef(isVisible);
   if (lastFilter.current !== isVisible) {
     lastFilter.current = isVisible;

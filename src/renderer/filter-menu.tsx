@@ -1,4 +1,3 @@
-import { clipboard } from "electron";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -138,7 +137,7 @@ export const CopyButton = ({ text, title }: { text: string; title: string }) => 
   }, [copied]);
 
   const copy = () => {
-    clipboard.writeText(text);
+    navigator.clipboard.writeText(text);
     setCopied(true);
   };
 
